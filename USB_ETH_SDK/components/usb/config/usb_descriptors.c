@@ -3,6 +3,7 @@
 #include "class/net/net_device.h"
 #include "usb_descriptor.h"
 #include "logger.h"
+#include "board.h"
 
 static const char *TAG = "USB_DESC";
 
@@ -139,13 +140,8 @@ uint16_t const *tud_descriptor_string_cb(uint8_t index, uint16_t langid)
 /* Network MAC address (required by net_device class driver)            */
 /* -------------------------------------------------------------------- */
 
-/* TODO: derive from STM32 96-bit unique device ID instead of a fixed
- * value, to avoid MAC collision when multiple boards are on the same
- * network. Locally administered MAC, unicast: 02:00:00:00:00:00 */
-static uint8_t const tud_network_mac_addr[6] = { 0x02, 0x00, 0x00, 0x00, 0x00, 0x00 };
-
 void tud_network_mac_address(uint8_t mac_address[6])
 {
-    memcpy(mac_address, tud_network_mac_addr, sizeof(tud_network_mac_addr));
+    board_get_mac(mac_address);
     LOGD(TAG, "mac address requested");
 }
