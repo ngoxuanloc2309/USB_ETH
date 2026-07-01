@@ -12,9 +12,22 @@ extern "C" {
 
 #define UART_LOGGER &huart3
 
+/* Locally administered, unicast MAC (bit0 of byte1 = 0, bit1 = 1).
+ * Used by components/usb for the USB network interface (ECM/RNDIS).
+ * TODO: replace with STM32 96-bit UID derived value if multiple
+ * boards need to run on the same network at the same time. */
+#define MAC_BYTE1  0x02
+#define MAC_BYTE2  0x00
+#define MAC_BYTE3  0x00
+#define MAC_BYTE4  0x00
+#define MAC_BYTE5  0x00
+#define MAC_BYTE6  0x00
+
 void board_init(void);
 
 void uart_log_write(const char *str);
+
+void board_get_mac(uint8_t mac[6]);
 
 #ifdef __cplusplus
 }
