@@ -10,7 +10,7 @@ extern "C" {
 #include "task.h"
 
 #define USB_TASK_STACK_SIZE  512
-#define USB_TASK_PRIORITY    osPriorityAboveNormal
+#define USB_TASK_PRIORITY    osPriorityNormal
 
 #ifdef __cplusplus
 }
