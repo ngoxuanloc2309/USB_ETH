@@ -86,7 +86,7 @@ extern "C" {
  * processing is not starved. Revisit together with all other task
  * priorities (shell, tcp_server...) once they exist. */
 #define TCPIP_THREAD_STACKSIZE  2048
-#define TCPIP_THREAD_PRIO       24
+#define TCPIP_THREAD_PRIO       40
 #define TCPIP_MBOX_SIZE         8
 
 #define DEFAULT_THREAD_STACKSIZE   1024
