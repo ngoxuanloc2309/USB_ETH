@@ -29,6 +29,18 @@ void uart_log_write(const char *str);
 
 void board_get_mac(uint8_t mac[6]);
 
+/**
+ * @brief Start the FreeRTOS task that runs the TinyUSB device stack.
+ *
+ * Creates a task that calls tusb_init() then loops tud_task() forever.
+ * Generic USB stack bring-up only: this function does not know about
+ * any specific class (CDC, network...). Any class-level init that
+ * must run before tud_task() starts processing events (for example
+ * usb_cdc_transport_init()) must be called by the composition layer
+ * (app_init()) BEFORE calling this function.
+ */
+void board_usb_task_start(void);
+
 #ifdef __cplusplus
 }
 #endif
