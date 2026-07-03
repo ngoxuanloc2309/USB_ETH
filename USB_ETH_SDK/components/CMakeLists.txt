@@ -34,7 +34,7 @@ add_library(tinyusb STATIC)
 # include dirs (already includes "lib/networking" for rndis_protocol.h,
 # required by class/net/ecm_rndis_device.c). Host/typec sources compile but
 # are inert, guarded internally by CFG_TUH_ENABLED (0 in tusb_config.h).
-include(${CMAKE_SOURCE_DIR}/libs/tinyusb/src/CMakeLists.txt)
+include(${CMAKE_CURRENT_SOURCE_DIR}/../libs/tinyusb/src/CMakeLists.txt)
 tinyusb_target_add(tinyusb)
 
 # Device Controller Driver (DCD): intentionally NOT included by
@@ -42,11 +42,11 @@ tinyusb_target_add(tinyusb)
 # included") - hardware-specific, picked by the integrator. This board has
 # USB_DRD_FS (STM32H5, Full Speed only), port name "stm32_fsdev".
 target_sources(tinyusb PRIVATE
-    ${CMAKE_SOURCE_DIR}/libs/tinyusb/src/portable/st/stm32_fsdev/dcd_stm32_fsdev.c
-    ${CMAKE_SOURCE_DIR}/libs/tinyusb/src/portable/st/stm32_fsdev/fsdev_common.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../libs/tinyusb/src/portable/st/stm32_fsdev/dcd_stm32_fsdev.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../libs/tinyusb/src/portable/st/stm32_fsdev/fsdev_common.c
 )
 
-target_link_libraries(tinyusb PUBLIC tusb_config)
+target_link_libraries(tinyusb PUBLIC tusb_config RTOS2)
 
 # ============================================================================
 # lwIP (vendor library)
@@ -59,7 +59,7 @@ target_link_libraries(tinyusb PUBLIC tusb_config)
 # *_SRCS variables it defines are used to build a single "lwip" target
 # with exactly the sources this project needs.
 # ============================================================================
-set(LWIP_DIR ${CMAKE_SOURCE_DIR}/libs/stm32-mw-lwip)
+set(LWIP_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../libs/stm32-mw-lwip)
 set(LWIP_EXCLUDE_SLIPIF TRUE)  # SLIP driver not used (USB netif only)
 
 include(${LWIP_DIR}/src/Filelists.cmake)
@@ -82,7 +82,7 @@ target_include_directories(lwip PUBLIC
     ${LWIP_DIR}/system
 )
 
-target_link_libraries(lwip PUBLIC lwip_config)
+target_link_libraries(lwip PUBLIC lwip_config RTOS2)
 
 # ============================================================================
 # usb_cdc (components/usb) - CDC shell transport over TinyUSB
