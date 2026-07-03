@@ -17,7 +17,7 @@ extern "C" {
  * See project decision: "Option A" (tcpip_thread + socket API), chosen
  * because those services already depend on it. */
 
-#define LWIP_TCPIP_CORE_LOCKING        0
+#define LWIP_TCPIP_CORE_LOCKING        1
 #define LWIP_TCPIP_CORE_LOCKING_INPUT  0
 
 #define LWIP_SOCKET   1
