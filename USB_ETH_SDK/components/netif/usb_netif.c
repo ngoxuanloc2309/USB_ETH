@@ -6,9 +6,9 @@
  * and components/lwip headers - see the layering rules in the
  * project handoff notes.
  *
- * Step 2a: init/startup only (tcpip_init + netif_add). RX path, TX
- * path and tud_mount_cb/tud_umount_cb wiring are added in later
- * steps, on top of this file.
+ * Contains: tcpip_thread startup + netif_add, RX path
+ * (tud_network_recv_cb), TX path (linkoutput + tud_network_xmit_cb),
+ * and link state sync (tud_mount_cb/tud_umount_cb <-> netif link up/down).
  */
 
 #include "usb_netif.h"
@@ -21,6 +21,7 @@
 #include "lwip/netif.h"
 #include "lwip/dns.h"
 #include "lwip/etharp.h"
+#include "lwip/pbuf.h"
 
 #include "board.h"
 #include "logger.h"
@@ -32,19 +33,121 @@ static const char *TAG = "usb-netif";
 static struct netif usb_netif_data;
 
 /* -------------------------------------------------------------------- */
-/* TX path placeholder (implemented in a later step)                    */
+/* RX path: host -> device, USB -> lwip                                 */
 /* -------------------------------------------------------------------- */
+/* Runs in the USB task context (called from tud_task(), see
+ * board_usb_task_start()), NOT in tcpip_thread.
+ *
+ * Return value contract (see class/net/net_device.h and
+ * class/net/ecm_rndis_device.c): if this returns false, TinyUSB
+ * calls tud_network_recv_renew() on our behalf (packet dropped,
+ * ready for the next one). If it returns true, WE are responsible
+ * for calling tud_network_recv_renew() ourselves once we are done
+ * reading src - forgetting it stalls the OUT endpoint permanently. */
+bool tud_network_recv_cb(const uint8_t *src, uint16_t size)
+{
+    struct pbuf *p;
 
-/* TODO (next step - TX path): replace with the real implementation
- * that hands the pbuf to tud_network_xmit(). Kept as a safe stub for
- * now so netif_add() always has a valid linkoutput pointer. */
-static err_t usb_netif_linkoutput_stub(struct netif *netif, struct pbuf *p)
+    if (size == 0) {
+        return true;
+    }
+
+    /* src only points into TinyUSB's internal RX buffer, valid only
+     * until tud_network_recv_renew() is called - must copy out now. */
+    p = pbuf_alloc(PBUF_RAW, size, PBUF_POOL);
+    if (p == NULL) {
+        LOGW(TAG, "rx: pbuf_alloc failed, size=%u, packet dropped", (unsigned)size);
+        return false; /* TinyUSB will renew for us */
+    }
+
+    pbuf_take(p, src, size);
+
+    if (usb_netif_data.input == NULL) {
+        /* netif_add() (in usb_netif_startup_cb, running inside
+         * tcpip_thread) has not finished yet. Extremely unlikely in
+         * practice - USB enumeration takes far longer than
+         * tcpip_thread startup - but cheap to guard against a NULL
+         * deref rather than assume the timing always holds. */
+        LOGW(TAG, "rx: netif not ready yet, packet dropped, size=%u", (unsigned)size);
+        pbuf_free(p);
+        tud_network_recv_renew();
+        return true;
+    }
+
+    /* usb_netif_data.input == tcpip_input here (set in netif_add()):
+     * this only posts the pbuf to tcpip_thread's mailbox and returns,
+     * it does not process the packet in this task. */
+    if (usb_netif_data.input(p, &usb_netif_data) != ERR_OK) {
+        LOGW(TAG, "rx: netif input failed (mailbox full?), size=%u", (unsigned)size);
+        pbuf_free(p);
+    } else {
+        LOGD(TAG, "rx: queued %u bytes to tcpip_thread", (unsigned)size);
+    }
+
+    /* We took ownership of the buffer (accepted the packet, whether
+     * netif input ultimately succeeded or not) - must renew ourselves. */
+    tud_network_recv_renew();
+
+    return true;
+}
+
+/* -------------------------------------------------------------------- */
+/* TX path: lwip -> device, lwip -> USB                                 */
+/* -------------------------------------------------------------------- */
+/* Runs in tcpip_thread context (called by lwip core, ip_output ->
+ * etharp_output -> netif->linkoutput), NOT in the USB task.
+ *
+ * IMPORTANT: unlike the reference project, this must NOT call
+ * tud_task() itself. In this project tud_task() already runs in its
+ * own dedicated loop (board_usb_task_start()). Calling it again from
+ * here (tcpip_thread) would touch TinyUSB's internal state from two
+ * tasks at once - not safe, TinyUSB is only meant to be driven from
+ * a single task. If TX is momentarily busy we simply fail the send
+ * (ERR_WOULDBLOCK) and let it be retried:
+ *   - TCP: lwip's own retransmission timer resends the segment later,
+ *     no data lost, only delayed.
+ *   - UDP: the datagram is lost (no automatic retry) - acceptable
+ *     trade-off for now, see design discussion (Option A chosen over
+ *     a bounded retry-with-delay Option B). */
+static err_t usb_netif_linkoutput(struct netif *netif, struct pbuf *p)
 {
     (void)netif;
-    (void)p;
 
-    LOGW(TAG, "linkoutput called before TX path is implemented");
-    return ERR_USE;
+    if (!tud_ready()) {
+        LOGW(TAG, "tx: usb not ready, packet dropped, len=%u", (unsigned)p->tot_len);
+        return ERR_USE;
+    }
+
+    if (!tud_network_can_xmit(p->tot_len)) {
+        LOGD(TAG, "tx: usb busy, packet dropped, len=%u", (unsigned)p->tot_len);
+        return ERR_WOULDBLOCK;
+    }
+
+    /* Hold a reference until tud_network_xmit_cb() has actually copied
+     * the data out - tud_network_xmit() only schedules the transfer,
+     * it does not copy synchronously. */
+    pbuf_ref(p);
+    tud_network_xmit(p, 0);
+
+    return ERR_OK;
+}
+
+/* Called by TinyUSB once it is ready to copy the actual bytes out of
+ * our pbuf into its own USB TX buffer (dst). Runs in the USB task
+ * context (from tud_task()). */
+uint16_t tud_network_xmit_cb(uint8_t *dst, void *ref, uint16_t arg)
+{
+    struct pbuf *p = (struct pbuf *)ref;
+    uint16_t n;
+
+    (void)arg;
+
+    n = pbuf_copy_partial(p, dst, p->tot_len, 0);
+    pbuf_free(p); /* release the reference taken in usb_netif_linkoutput() */
+
+    LOGD(TAG, "tx: copied %u bytes to usb", (unsigned)n);
+
+    return n;
 }
 
 /* -------------------------------------------------------------------- */
@@ -59,7 +162,7 @@ static err_t usb_netif_init_cb(struct netif *netif)
     netif->flags = NETIF_FLAG_BROADCAST | NETIF_FLAG_ETHARP;
     netif->name[0] = 'E';
     netif->name[1] = 'X';
-    netif->linkoutput = usb_netif_linkoutput_stub;
+    netif->linkoutput = usb_netif_linkoutput;
     netif->output = etharp_output;
 
     LOGD(TAG, "netif init callback done, mtu=%u", (unsigned)netif->mtu);
@@ -85,7 +188,14 @@ static void usb_netif_status_cb(struct netif *netif)
 
 static void usb_netif_link_cb(struct netif *netif)
 {
-    LOGD(TAG, "netif link %s", netif_is_link_up(netif) ? "up" : "down");
+    bool is_up = netif_is_link_up(netif);
+
+    LOGD(TAG, "netif link %s", is_up ? "up" : "down");
+
+    /* Tell TinyUSB so it can send the RNDIS media status indication
+     * ("cable connected"/"disconnected") to the host. ECM does not
+     * use this, the call is harmless for it. */
+    tud_network_link_state(BOARD_TUD_RHPORT, is_up);
 }
 
 /* -------------------------------------------------------------------- */
@@ -131,8 +241,10 @@ static void usb_netif_startup_cb(void *arg)
     netif_set_link_callback(&usb_netif_data, usb_netif_link_cb);
 
     /* Link state (up/down) is driven from tud_mount_cb()/tud_umount_cb()
-     * in a later step. netif_set_up() only marks the interface
-     * administratively up; it does not imply the USB link is present. */
+     * (see below). netif_set_up() here only marks the interface
+     * administratively up; it does not imply the USB link is present -
+     * that part is netif_set_link_up()/down(), called separately once
+     * the host actually finishes enumeration. */
     netif_set_up(&usb_netif_data);
 
     dns_setserver(0, &dns_ip);
@@ -148,4 +260,43 @@ void usb_netif_init(void)
 {
     LOGI(TAG, "starting tcpip_thread");
     tcpip_init(usb_netif_startup_cb, NULL);
+}
+
+/* -------------------------------------------------------------------- */
+/* TinyUSB device mount/unmount -> lwip link state                      */
+/* -------------------------------------------------------------------- */
+/* tud_mount_cb()/tud_umount_cb() run in the USB task (called from
+ * tud_task()), but netif_set_link_up()/netif_set_link_down() are lwip
+ * core API and must only be called from tcpip_thread (same reasoning
+ * as the TX path above). tcpip_callback() safely marshals the call
+ * into tcpip_thread's mailbox instead of calling it directly here. */
+
+static void usb_netif_set_link_up_cb(void *ctx)
+{
+    (void)ctx;
+    netif_set_link_up(&usb_netif_data);
+}
+
+static void usb_netif_set_link_down_cb(void *ctx)
+{
+    (void)ctx;
+    netif_set_link_down(&usb_netif_data);
+}
+
+void tud_mount_cb(void)
+{
+    LOGI(TAG, "usb mounted (enumeration complete)");
+
+    if (tcpip_callback(usb_netif_set_link_up_cb, NULL) != ERR_OK) {
+        LOGE(TAG, "failed to schedule netif_set_link_up");
+    }
+}
+
+void tud_umount_cb(void)
+{
+    LOGI(TAG, "usb unmounted");
+
+    if (tcpip_callback(usb_netif_set_link_down_cb, NULL) != ERR_OK) {
+        LOGE(TAG, "failed to schedule netif_set_link_down");
+    }
 }

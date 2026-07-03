@@ -63,7 +63,7 @@ extern "C" {
 #define MEMP_NUM_NETCONN  8
 
 #define PBUF_POOL_SIZE     16
-#define PBUF_POOL_BUFSIZE  1024
+#define PBUF_POOL_BUFSIZE  1536
 
 /* -------------------------------------------------------------------- */
 /* TCP                                                                   */
