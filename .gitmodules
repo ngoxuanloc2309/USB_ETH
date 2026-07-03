@@ -4,3 +4,6 @@
 [submodule "USB_ETH_SDK/libs/stm32-mw-lwip"]
 	path = USB_ETH_SDK/libs/stm32-mw-lwip
 	url = https://github.com/STMicroelectronics/stm32-mw-lwip.git
+[submodule "USB_ETH_SDK/libs/TLS"]
+	path = USB_ETH_SDK/libs/TLS
+	url = https://github.com/STMicroelectronics/stm32-mw-mbedtls.git
