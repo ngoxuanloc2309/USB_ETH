@@ -99,13 +99,14 @@ static char const *string_desc_arr[STRID_COUNT] = {
     [STRID_MANUFACTURER] = "Synaptix",
     [STRID_PRODUCT]      = "USB_ETH",
     [STRID_SERIAL]       = "000001",
-    [STRID_MAC]          = "020000000000",
+    [STRID_MAC]          = NULL, /* built dynamically, see below */
     [STRID_SHELL]        = "USB_ETH Shell",
 };
 
 uint16_t const *tud_descriptor_string_cb(uint8_t index, uint16_t langid)
 {
     static uint16_t desc_str[32];
+    static char mac_str[12 + 1];
     uint8_t chr_count;
 
     (void)langid;
@@ -113,6 +114,22 @@ uint16_t const *tud_descriptor_string_cb(uint8_t index, uint16_t langid)
     if (index == STRID_LANGID) {
         desc_str[1] = 0x0409; /* English (US) */
         chr_count = 1;
+    } else if (index == STRID_MAC) {
+        /* Build the 12-char hex ASCII MAC string from the actual
+         * tud_network_mac_address[] array, so the string descriptor
+         * the host reads always matches the real device MAC. */
+        static char const hex_digits[] = "0123456789ABCDEF";
+
+        for (uint8_t i = 0; i < 6; i++) {
+            mac_str[2 * i]     = hex_digits[(tud_network_mac_address[i] >> 4) & 0x0F];
+            mac_str[2 * i + 1] = hex_digits[tud_network_mac_address[i] & 0x0F];
+        }
+        mac_str[12] = '\0';
+
+        chr_count = 12;
+        for (uint8_t i = 0; i < chr_count; i++) {
+            desc_str[1 + i] = mac_str[i];
+        }
     } else {
         if (index >= STRID_COUNT || string_desc_arr[index] == NULL) {
             LOGW(TAG, "string descriptor index not defined: %u", index);
@@ -140,8 +157,11 @@ uint16_t const *tud_descriptor_string_cb(uint8_t index, uint16_t langid)
 /* Network MAC address (required by net_device class driver)            */
 /* -------------------------------------------------------------------- */
 
-void tud_network_mac_address(uint8_t mac_address[6])
-{
-    board_get_mac(mac_address);
-    LOGD(TAG, "mac address requested");
-}
+/* net_device.h declares this as an extern global variable, not a
+ * callback function. TinyUSB core reads this array directly when
+ * building the RNDIS/ECM descriptors and when answering ARP on the
+ * internal (host-side) virtual MAC. A function with this name is
+ * never called by the stack. */
+uint8_t tud_network_mac_address[6] = {
+    MAC_BYTE1, MAC_BYTE2, MAC_BYTE3, MAC_BYTE4, MAC_BYTE5, MAC_BYTE6
+};
