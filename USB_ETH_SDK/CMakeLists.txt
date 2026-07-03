@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.22)
 
 enable_language(C CXX ASM)
 
-set(CMAKE_LIBS_NAME synaptix)
+set(CMAKE_LIBS_NAME USB_ETH_SDK_LIBS)
 
 add_library(${CMAKE_LIBS_NAME} INTERFACE)
 

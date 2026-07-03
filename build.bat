@@ -17,11 +17,11 @@ goto end
 :build
 if not exist build\release\build.ninja (
     echo Configuring Release...
-    echo  -----    -       -    ---     -
-    echo |           -   -      -  -    -
-    echo  -----        -        -   -   -
-    echo       |       -        -    -  -
-    echo  -----        -        -     ---
+    @REM echo  -----    -       -    ---     -
+    @REM echo |           -   -      -  -    -
+    @REM echo  -----        -        -   -   -
+    @REM echo       |       -        -    -  -
+    @REM echo  -----        -        -     ---
     cmake -S . -B build\release -G Ninja ^
         -DCMAKE_TOOLCHAIN_FILE=%TOOLCHAIN% ^
         -DCMAKE_BUILD_TYPE=Release
