@@ -48,7 +48,7 @@ extern "C" {
  * sense with STM32's ETH peripheral DMA (hardware checksum offload)
  * used by CubeMX's own ethernetif.c. This project has no such
  * peripheral in the USB netif path (see components/netif), so all
- * checksums must be computed in software. CHECKSUM_GEN_*/CHECKSUM_CHECK_*
+ * checksums must be computed in software. CHECKSUM_GEN_CHECKSUM_CHECK_*
  * already default to 1 (software) in lwip/opt.h, left at default here
  * on purpose, not overridden. */
 
