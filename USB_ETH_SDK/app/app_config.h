@@ -16,6 +16,9 @@ extern "C" {
 #define MQTT_HOST               "broker.hivemq.com"
 #define MQTT_PORT               1883
 #define MQTT_TEST_PUB_TOPIC     "log/usb_eth"
+#define MQTT_APP_CLIENT_ID          "usb_eth_dev_01"
+#define MQTT_APP_KEEPALIVE_S        60
+#define MQTT_APP_PUBLISH_PERIOD_MS  10000
 
 
 #ifdef __cplusplus
