@@ -252,34 +252,11 @@ static void usb_netif_startup_cb(void *arg)
     LOGI(TAG, "usb netif started");
 }
 
-/* -------------------------------------------------------------------- */
-/* RNDIS control message handler (see class/net/net_device.h)           */
-/* -------------------------------------------------------------------- */
-/* Called by TinyUSB (class/net/ecm_rndis_device.c, netd_control_xfer_cb,
- * CONTROL_STAGE_DATA) only when the interface is currently running in
- * RNDIS mode (ecm_mode == false). While running as ECM this is dead
- * code - never invoked at runtime - but the symbol must still exist:
- * ecm_rndis_device.c references it unconditionally whenever
- * CFG_TUD_ECM_RNDIS is enabled, regardless of which mode the host
- * actually negotiates.
- *
- * PLACEHOLDER ONLY: RNDIS support is not implemented yet, this stub
- * exists solely to unblock the link step while ECM is being tested
- * first (see handoff notes decision). It does not parse or respond to
- * any RNDIS message (REMOTE_NDIS_INITIALIZE_MSG / QUERY_MSG / SET_MSG
- * / RESET_MSG / KEEPALIVE_MSG, see lib/networking/rndis_protocol.h) -
- * a Windows host negotiating RNDIS mode against this stub will NOT
- * get a working network connection. Real OID handling is a separate,
- * later task (see handoff notes item 8.7 / "full RNDIS").
- */
-#if CFG_TUD_ECM_RNDIS
-void rndis_class_set_handler(uint8_t *data, int size)
-{
-    (void)data;
-
-    LOGW(TAG, "rndis: control message received (size=%d) but RNDIS is not implemented yet (stub)", size);
-}
-#endif
+/* rndis_class_set_handler() is now provided by the vendor's own
+ * lib/networking/rndis_reports.c (see components/CMakeLists.txt,
+ * target usb_netif) instead of a local stub - full RNDIS OID
+ * handling (INITIALIZE/QUERY/SET/RESET/KEEPALIVE), reusing
+ * tud_network_mac_address[] already defined in usb_descriptors.c. */
 
 /* -------------------------------------------------------------------- */
 /* Public API                                                            */
