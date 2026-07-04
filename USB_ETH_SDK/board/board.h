@@ -41,7 +41,7 @@ extern "C" {
 #define NETMASK_BYTE1  255
 #define NETMASK_BYTE2  255
 #define NETMASK_BYTE3  255
-#define NETMASK_BYTE4  0
+#define NETMASK_BYTE4  0     
 
 
 
