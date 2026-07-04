@@ -102,12 +102,24 @@ extern "C" {
 #define LWIP_STATS         0
 #define MEMP_NUM_SYS_TIMEOUT  16
 
-/* Route lwIP's debug output through utils/logger instead of raw
- * printf() - printf() is not retargeted to any UART in this project
- * (no _write()/__io_putchar() found), so LWIP_DEBUGF would go
- * nowhere (or hang on unhandled semihosting) if left at the default. */
+/* -------------------------------------------------------------------- */
+/* Debug - ETHARP only, temporary, for the MQTT/TCP connect timeout     */
+/* investigation (board's ARP request to the gateway never gets a      */
+/* reply applied - see project handoff notes).                         */
+/*                                                                      */
+/* LWIP_DEBUGF() is a no-op unless LWIP_DEBUG is #defined (existence   */
+/* check, not value check - see lwip/debug.h) REGARDLESS of            */
+/* ETHARP_DEBUG/LWIP_DBG_MIN_LEVEL being set. Missing this is why the   */
+/* previous attempt produced no output at all.                         */
+/*                                                                      */
+/* printf() is not retargeted to any UART in this project (no          */
+/* _write()/__io_putchar() found in board/) - the default              */
+/* LWIP_PLATFORM_DIAG(x) calling printf(x) would go nowhere. Route      */
+/* through utils/logger instead (components/CMakeLists.txt: lwip now   */
+/* links logger for this).                                             */
+#define LWIP_DEBUG
 #include "logger.h"
-#define LWIP_PLATFORM_DIAG(x)    do { LOGD("lwip", x); } while (0)
+#define LWIP_PLATFORM_DIAG(x)   do { lwip_diag_log x; } while (0)
 
 #define LWIP_DBG_MIN_LEVEL       LWIP_DBG_LEVEL_ALL
 #define ETHARP_DEBUG             LWIP_DBG_ON

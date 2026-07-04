@@ -24,3 +24,13 @@ u32_t sys_now(void)
 {
     return (u32_t)HAL_GetTick();
 }
+
+void lwip_diag_log(const char *frmt, ...)
+{
+    char buf[128];
+    va_list args;
+    va_start(args, frmt);
+    vsnprintf(buf, sizeof(buf), frmt, args);
+    va_end(args);
+    LOGD("lwip", "%s", buf);
+}
