@@ -73,6 +73,31 @@ bool tud_network_recv_cb(const uint8_t *src, uint16_t size)
 
     pbuf_take(p, src, size);
 
+    /* Diagnostic: same purpose as the tx: ARP/IP log in
+     * usb_netif_linkoutput() - decode what is actually arriving,
+     * rather than relying on byte-count logs, to find out whether
+     * the gateway ever replies to our ARP requests (see project
+     * handoff notes on the MQTT/TCP connect timeout investigation).
+     * src still points at the raw frame here (before pbuf_take copies
+     * it out), so read directly from it. 42 bytes = full ARP frame
+     * (14 byte eth header + 28 byte ARP payload) - decode ethertype,
+     * ARP opcode (offset 20-21) and sender IP (offset 28-31, i.e.
+     * "who is answering", to confirm this is really the gateway). */
+    if (size >= 14) {
+        uint16_t ethertype = (src[12] << 8) | src[13];
+
+        if (ethertype == 0x0806 && size >= 42) {
+            LOGI(TAG, "rx: ARP op=%u sender=%u.%u.%u.%u, len=%u",
+                 (unsigned)((src[20] << 8) | src[21]),
+                 (unsigned)src[28], (unsigned)src[29],
+                 (unsigned)src[30], (unsigned)src[31], (unsigned)size);
+        } else if (ethertype == 0x0806) {
+            LOGI(TAG, "rx: ARP, len=%u", (unsigned)size);
+        }
+        /* IP frames intentionally not decoded here yet - current
+         * investigation only needs to confirm ARP replies arrive. */
+    }
+
     if (usb_netif_data.input == NULL) {
         /* netif_add() (in usb_netif_startup_cb, running inside
          * tcpip_thread) has not finished yet. Extremely unlikely in
