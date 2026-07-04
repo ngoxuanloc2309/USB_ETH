@@ -23,12 +23,12 @@ extern "C" {
 #define MAC_BYTE5  0x00
 #define MAC_BYTE6  0x00
 
-#define IP_BYTE1   169
+#define IP_BYTE1   192
 #define IP_BYTE2   168
 #define IP_BYTE3   137
 #define IP_BYTE4   3
 
-#define GW_BYTE1   169
+#define GW_BYTE1   192
 #define GW_BYTE2   168
 #define GW_BYTE3   137
 #define GW_BYTE4   1
