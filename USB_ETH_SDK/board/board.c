@@ -65,3 +65,8 @@ void board_usb_task_start(void)
         LOGE(TAG, "failed to create usb device task");
     }
 }
+
+void USB_DRD_FS_IRQHandler(void)
+{
+    dcd_int_handler(0);   // rhport 0, per TinyUSB stm32_fsdev port (dcd_int_handler signature at dcd_stm32_fsdev.c:392)
+}
