@@ -119,6 +119,13 @@ extern "C" {
 /* links logger for this).                                             */
 #define LWIP_DEBUG
 #include "logger.h"
+
+/* Defined in lwip_port_glue.c. Must be declared here because
+ * lwipopts.h is pulled in (via lwip/opt.h) by nearly every lwIP core
+ * .c file - each of those needs the prototype visible at the point
+ * LWIP_PLATFORM_DIAG expands, not just wherever the function is
+ * actually implemented. */
+void lwip_diag_log(const char *frmt, ...);
 #define LWIP_PLATFORM_DIAG(x)   do { lwip_diag_log x; } while (0)
 
 #define LWIP_DBG_MIN_LEVEL       LWIP_DBG_LEVEL_ALL
