@@ -25,12 +25,12 @@ extern "C" {
 
 #define IP_BYTE1   192
 #define IP_BYTE2   168
-#define IP_BYTE3   137
+#define IP_BYTE3   110
 #define IP_BYTE4   2
 
 #define GW_BYTE1   192
 #define GW_BYTE2   168
-#define GW_BYTE3   137
+#define GW_BYTE3   110
 #define GW_BYTE4   1
 
 #define DNS_BYTE1  GW_BYTE1
