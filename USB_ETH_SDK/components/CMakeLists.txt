@@ -123,3 +123,18 @@ target_link_libraries(usb_netif PUBLIC
     logger
     board
 )
+
+# ============================================================================
+# components - INTERFACE umbrella target grouping all component sub-targets.
+# Used by USB_ETH_SDK/CMakeLists.txt so the top-level file does not need to
+# know the individual sub-target names. Add new component targets here.
+# ============================================================================
+add_library(components INTERFACE)
+target_link_libraries(components INTERFACE
+    tusb_config
+    lwip_config
+    tinyusb
+    lwip
+    usb_cdc
+    usb_netif
+)

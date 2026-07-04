@@ -97,3 +97,20 @@ target_link_libraries(tcp_server PUBLIC
 
 # services/http_service: NOT built on purpose - http_service.c/.h are 0
 # bytes (not implemented yet). Add here when there is real code.
+
+# ============================================================================
+# services - INTERFACE umbrella target grouping all service sub-targets.
+# Used by USB_ETH_SDK/CMakeLists.txt so the top-level file does not need to
+# know the individual sub-target names. Add new service targets here.
+# Note: socketclient/socketserver are cross-referenced via include dirs only
+# (no target_link_libraries between them) to avoid a real link cycle; both
+# are still listed here since both are real buildable static libs.
+# ============================================================================
+add_library(services INTERFACE)
+target_link_libraries(services INTERFACE
+    cli_shell
+    mqtt_service
+    socketclient
+    socketserver
+    tcp_server
+)
