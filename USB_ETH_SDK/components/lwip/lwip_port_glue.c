@@ -19,6 +19,7 @@
 
 #include "lwip/sys.h"
 #include "stm32h5xx_hal.h"
+#include "logger.h"
 
 u32_t sys_now(void)
 {
