@@ -1,4 +1,7 @@
 #MicroXplorer Configuration settings - do not modify
+BOOTPATH.BootPathName=LEGACY
+BOOTPATH.IPParameters=BootPathName
+BOOTPATH.UserSelectedBootPath=LEGACY
 CAD.formats=
 CAD.pinconfig=
 CAD.provider=
@@ -124,7 +127,7 @@ ProjectManager.ToolChainLocation=
 ProjectManager.UAScriptAfterPath=
 ProjectManager.UAScriptBeforePath=
 ProjectManager.UnderRoot=false
-ProjectManager.functionlistsort=1-SystemClock_Config-RCC-false-HAL-false,2-MX_GPIO_Init-GPIO-false-HAL-true,3-MX_ICACHE_Init-ICACHE-false-HAL-true,4-MX_USART3_UART_Init-USART3-false-HAL-true,5-MX_USB_PCD_Init-USB-true-HAL-true,0-MX_CORTEX_M33_NS_Init-CORTEX_M33_NS-false-HAL-true,0-MX_PWR_Init-PWR-false-HAL-true
+ProjectManager.functionlistsort=1-SystemClock_Config-RCC-false-HAL-false,2-MX_GPIO_Init-GPIO-false-HAL-true,3-MX_ICACHE_Init-ICACHE-false-HAL-true,4-MX_USART3_UART_Init-USART3-false-HAL-true,5-MX_USB_PCD_Init-USB-false-HAL-true,0-MX_CORTEX_M33_NS_Init-CORTEX_M33_NS-false-HAL-true,0-MX_PWR_Init-PWR-false-HAL-true
 RCC.ADCFreq_Value=32000000
 RCC.AHBFreq_Value=32000000
 RCC.APB1Freq_Value=32000000
@@ -208,7 +211,7 @@ RCC.VCOOutputFreq_Value=516000000
 RCC.VCOPLL2OutputFreq_Value=516000000
 RCC.VCOPLL3OutputFreq_Value=516000000
 STMicroelectronics.X-CUBE-FREERTOS.1.5.0.CMSISJjRTOS2_Checked=true
-STMicroelectronics.X-CUBE-FREERTOS.1.5.0.IPParameters=RTOS2CcCMSISJjRTOS2JjHeap,RTOS2CcCMSISJjRTOS2JjCore,configMINIMAL_STACK_SIZE,configTOTAL_HEAP_SIZE
+STMicroelectronics.X-CUBE-FREERTOS.1.5.0.IPParameters=configMINIMAL_STACK_SIZE,configTOTAL_HEAP_SIZE,RTOS2CcCMSISJjRTOS2JjCore,RTOS2CcCMSISJjRTOS2JjHeap
 STMicroelectronics.X-CUBE-FREERTOS.1.5.0.RTOS2CcCMSISJjRTOS2JjCore=TZIiNonIiSupported
 STMicroelectronics.X-CUBE-FREERTOS.1.5.0.RTOS2CcCMSISJjRTOS2JjHeap=HeapIi4
 STMicroelectronics.X-CUBE-FREERTOS.1.5.0.configMINIMAL_STACK_SIZE=256
