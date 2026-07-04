@@ -102,6 +102,16 @@ extern "C" {
 #define LWIP_STATS         0
 #define MEMP_NUM_SYS_TIMEOUT  16
 
+/* Route lwIP's debug output through utils/logger instead of raw
+ * printf() - printf() is not retargeted to any UART in this project
+ * (no _write()/__io_putchar() found), so LWIP_DEBUGF would go
+ * nowhere (or hang on unhandled semihosting) if left at the default. */
+#include "logger.h"
+#define LWIP_PLATFORM_DIAG(x)    do { LOGD("lwip", x); } while (0)
+
+#define LWIP_DBG_MIN_LEVEL       LWIP_DBG_LEVEL_ALL
+#define ETHARP_DEBUG             LWIP_DBG_ON
+
 #ifdef __cplusplus
 }
 #endif

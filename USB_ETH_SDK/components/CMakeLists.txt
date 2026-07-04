@@ -83,7 +83,7 @@ target_include_directories(lwip PUBLIC
     ${LWIP_DIR}/system
 )
 
-target_link_libraries(lwip PUBLIC lwip_config RTOS2)
+target_link_libraries(lwip PUBLIC lwip_config RTOS2 logger)
 
 # ============================================================================
 # usb_cdc (components/usb) - CDC shell transport over TinyUSB
