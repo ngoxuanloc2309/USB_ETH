@@ -135,11 +135,28 @@ static err_t usb_netif_linkoutput(struct netif *netif, struct pbuf *p)
      * - fine for a diagnostic, real header length is not re-derived
      * here since nothing downstream depends on this log). */
     if (p->tot_len >= 14) {
-        uint8_t hdr[34];
+        /* 42 bytes covers a full ARP packet (14 byte eth header + 28
+         * byte ARP payload): needed to decode opcode (offset 20-21)
+         * and target IP (offset 38-41) below, not just detect that
+         * it is ARP. */
+        uint8_t hdr[42];
         uint16_t copied = pbuf_copy_partial(p, hdr, sizeof(hdr) > p->tot_len ? p->tot_len : sizeof(hdr), 0);
         uint16_t ethertype = (copied >= 14) ? ((hdr[12] << 8) | hdr[13]) : 0;
 
-        if (ethertype == 0x0806) {
+        if (ethertype == 0x0806 && copied >= 42) {
+            /* ARP header: hw type(2) proto type(2) hw len(1) proto len(1)
+             * opcode(2) sender MAC(6) sender IP(4) target MAC(6) target IP(4)
+             * starting right after the 14 byte Ethernet header. Opcode
+             * 1=request, 2=reply. Target IP tells us WHO this request
+             * is trying to resolve - critical to tell apart "ARPing the
+             * gateway, correct, but reply never applied" from "ARPing
+             * the remote broker IP directly, wrong routing, can never
+             * get a reply since that host is off-link". */
+            LOGI(TAG, "tx: ARP op=%u target=%u.%u.%u.%u, len=%u",
+                 (unsigned)((hdr[20] << 8) | hdr[21]),
+                 (unsigned)hdr[38], (unsigned)hdr[39],
+                 (unsigned)hdr[40], (unsigned)hdr[41], (unsigned)p->tot_len);
+        } else if (ethertype == 0x0806) {
             LOGI(TAG, "tx: ARP, len=%u", (unsigned)p->tot_len);
         } else if (ethertype == 0x0800 && copied >= 34) {
             LOGI(TAG, "tx: IP proto=%u dst=%u.%u.%u.%u, len=%u",
