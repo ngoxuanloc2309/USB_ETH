@@ -49,10 +49,33 @@ target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
 # Add sources to executable
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user sources here
+    # rndis_reports.c: TinyUSB's own vendor glue for the RNDIS class driver
+    # (implements rndis_class_set_handler(), called from ecm_rndis_device.c
+    # inside libtinyusb.a). Compiled directly into the executable, NOT into
+    # any static library archive: it needs symbols from both libtinyusb.a
+    # (tusb.h) and libusb_cdc.a (tud_network_mac_address), which would form
+    # a real circular dependency between static archives if it were placed
+    # in either one - GNU ld resolves archive members lazily (only on
+    # already-outstanding undefined references, scanned strictly left to
+    # right, no second pass), so no single link order can satisfy a true
+    # cycle between two archives. A plain object file has no such lazy
+    # extraction: its definitions become available unconditionally, so as
+    # long as this object is placed before libtinyusb.a in the link line
+    # (true here - executable sources are emitted before USB_ETH_SDK_LIBS),
+    # rndis_class_set_handler resolves correctly. See mục 8 of the v4/v5
+    # handoff notes for the group-flag attempts that did not work.
+    USB_ETH_SDK/libs/tinyusb/lib/networking/rndis_reports.c
 )
 
 # Add include paths
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
+    # Add user defined include paths
+    USB_ETH_SDK/components/usb/config
+    USB_ETH_SDK/libs/tinyusb/src
+    USB_ETH_SDK/libs/tinyusb/lib/networking
+    USB_ETH_SDK/libs/stm32-mw-lwip/src/include
+    USB_ETH_SDK/libs/stm32-mw-lwip/system
+    USB_ETH_SDK/components/lwip
     # Add user defined include paths
 )
 
@@ -67,6 +90,8 @@ list(REMOVE_ITEM CMAKE_C_IMPLICIT_LINK_LIBRARIES ob)
 # Add linked libraries
 target_link_libraries(${CMAKE_PROJECT_NAME}
     stm32cubemx
+    -Wl,--start-group
     USB_ETH_SDK_LIBS
+    -Wl,--end-group
     # Add user defined libraries
 )

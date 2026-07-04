@@ -113,16 +113,6 @@ target_link_libraries(usb_cdc PRIVATE
 add_library(usb_netif STATIC)
 target_sources(usb_netif PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/netif/usb_netif.c
-    # Vendor helper (lib/networking/rndis_reports.c) - implements
-    # rndis_class_set_handler(), called from tinyusb's own
-    # class/net/ecm_rndis_device.c when the host enumerates RNDIS.
-    # Not part of tinyusb_target_add()'s default source list (that
-    # helper is opt-in per project), so it must be added here
-    # explicitly - this was missing, which is the actual reason the
-    # link step reported an undefined reference (the function was
-    # never compiled into any object, not a static-lib link-order
-    # issue).
-    ${CMAKE_CURRENT_SOURCE_DIR}/../libs/tinyusb/lib/networking/rndis_reports.c
 )
 target_include_directories(usb_netif PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/netif
