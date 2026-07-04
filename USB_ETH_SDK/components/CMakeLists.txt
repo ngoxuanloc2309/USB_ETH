@@ -72,6 +72,7 @@ target_sources(lwip PRIVATE
     ${lwipnetif_SRCS}
     ${lwipmqtt_SRCS}
     ${LWIP_DIR}/system/OS/sys_arch.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/lwip/lwip_port_glue.c
 )
 
 # src/include: lwIP's own public headers (lwip/*.h, netif/*.h).
