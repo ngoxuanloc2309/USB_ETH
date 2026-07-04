@@ -124,6 +124,32 @@ static err_t usb_netif_linkoutput(struct netif *netif, struct pbuf *p)
 {
     (void)netif;
 
+    /* Diagnostic: identify what is actually being transmitted (ARP vs
+     * IP, and for IP which protocol + destination) rather than relying
+     * on byte-count-only logs, which turned out to be unreliable to
+     * read by eye once several tasks are logging over the same UART
+     * at once (lines get interleaved/garbled). Ethertype is at offset
+     * 12-13 of the Ethernet frame; for IPv4, protocol is at offset 23
+     * and destination address at offset 30-33 (14 byte eth header +
+     * fixed 20 byte IPv4 header, no options assumed for this printout
+     * - fine for a diagnostic, real header length is not re-derived
+     * here since nothing downstream depends on this log). */
+    if (p->tot_len >= 14) {
+        uint8_t hdr[34];
+        uint16_t copied = pbuf_copy_partial(p, hdr, sizeof(hdr) > p->tot_len ? p->tot_len : sizeof(hdr), 0);
+        uint16_t ethertype = (copied >= 14) ? ((hdr[12] << 8) | hdr[13]) : 0;
+
+        if (ethertype == 0x0806) {
+            LOGI(TAG, "tx: ARP, len=%u", (unsigned)p->tot_len);
+        } else if (ethertype == 0x0800 && copied >= 34) {
+            LOGI(TAG, "tx: IP proto=%u dst=%u.%u.%u.%u, len=%u",
+                 (unsigned)hdr[23], (unsigned)hdr[30], (unsigned)hdr[31],
+                 (unsigned)hdr[32], (unsigned)hdr[33], (unsigned)p->tot_len);
+        } else {
+            LOGI(TAG, "tx: ethertype=0x%04x, len=%u", (unsigned)ethertype, (unsigned)p->tot_len);
+        }
+    }
+
     if (!tud_ready()) {
         LOGW(TAG, "tx: usb not ready, packet dropped, len=%u", (unsigned)p->tot_len);
         return ERR_USE;
