@@ -4,6 +4,7 @@
 
 #include "mqtt_app.h"
 #include "mqtt_service.h"
+#include "usb_netif.h"
 #include "app_config.h"
 #include "logger.h"
 
@@ -45,6 +46,13 @@ static void mqtt_app_task(void *param)
 
     if (s_mqtt_handle == NULL) {
         LOGE(TAG, "no mqtt handle (mqtt_app_init failed?), task exiting");
+        vTaskDelete(NULL);
+        return;
+    }
+
+    LOGI(TAG, "waiting for usb netif link up");
+    if (!usb_netif_wait_link_up(0)) {
+        LOGE(TAG, "usb netif link never came up, task exiting");
         vTaskDelete(NULL);
         return;
     }

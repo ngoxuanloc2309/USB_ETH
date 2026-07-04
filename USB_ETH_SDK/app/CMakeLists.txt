@@ -48,6 +48,7 @@ target_include_directories(mqtt_app PUBLIC
 )
 target_link_libraries(mqtt_app PUBLIC
     mqtt_service
+    usb_netif
     app_config
     RTOS2
     logger

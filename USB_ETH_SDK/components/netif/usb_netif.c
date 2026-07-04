@@ -17,6 +17,9 @@
 
 #include "tusb.h"
 
+#include "FreeRTOS.h"
+#include "event_groups.h"
+
 #include "lwip/tcpip.h"
 #include "lwip/netif.h"
 #include "lwip/dns.h"
@@ -31,6 +34,14 @@ static const char *TAG = "usb-netif";
 /* lwIP netif instance backing the USB network interface. Single
  * instance: this project only ever exposes one USB network class. */
 static struct netif usb_netif_data;
+
+/* Signals USB link state (set by usb_netif_link_cb(), running in
+ * tcpip_thread) to any task that needs to wait for the interface to
+ * actually be usable before sending traffic - e.g. mqtt_app_task,
+ * which used to call dns_gethostbyname() before USB enumeration even
+ * finished, guaranteeing a DNS timeout on every boot. */
+static EventGroupHandle_t s_link_event;
+#define USB_NETIF_LINK_UP_BIT   (1 << 0)
 
 /* -------------------------------------------------------------------- */
 /* RX path: host -> device, USB -> lwip                                 */
@@ -177,10 +188,16 @@ static err_t usb_netif_init_cb(struct netif *netif)
 static void usb_netif_status_cb(struct netif *netif)
 {
     if (netif_is_up(netif)) {
-        LOGI(TAG, "netif up, ip=%s mask=%s gw=%s",
-             ipaddr_ntoa(&netif->ip_addr),
-             ipaddr_ntoa(&netif->netmask),
-             ipaddr_ntoa(&netif->gw));
+        /* ipaddr_ntoa() returns a pointer into a single shared static
+         * buffer (not reentrant) - calling it 3 times as arguments to
+         * one printf-style call makes all 3 %s print the same (last
+         * evaluated) value. Use the reentrant ip4addr_ntoa_r() with a
+         * separate buffer per address instead. */
+        char ip_str[16], mask_str[16], gw_str[16];
+        ip4addr_ntoa_r(netif_ip4_addr(netif), ip_str, sizeof(ip_str));
+        ip4addr_ntoa_r(netif_ip4_netmask(netif), mask_str, sizeof(mask_str));
+        ip4addr_ntoa_r(netif_ip4_gw(netif), gw_str, sizeof(gw_str));
+        LOGI(TAG, "netif up, ip=%s mask=%s gw=%s", ip_str, mask_str, gw_str);
     } else {
         LOGI(TAG, "netif down");
     }
@@ -191,6 +208,12 @@ static void usb_netif_link_cb(struct netif *netif)
     bool is_up = netif_is_link_up(netif);
 
     LOGD(TAG, "netif link %s", is_up ? "up" : "down");
+
+    if (is_up) {
+        xEventGroupSetBits(s_link_event, USB_NETIF_LINK_UP_BIT);
+    } else {
+        xEventGroupClearBits(s_link_event, USB_NETIF_LINK_UP_BIT);
+    }
 
     /* Tell TinyUSB so it can send the RNDIS media status indication
      * ("cable connected"/"disconnected") to the host. ECM does not
@@ -264,8 +287,29 @@ static void usb_netif_startup_cb(void *arg)
 
 void usb_netif_init(void)
 {
+    s_link_event = xEventGroupCreate();
+    if (s_link_event == NULL) {
+        LOGE(TAG, "xEventGroupCreate failed");
+    }
+
     LOGI(TAG, "starting tcpip_thread");
     tcpip_init(usb_netif_startup_cb, NULL);
+}
+
+bool usb_netif_wait_link_up(uint32_t timeout_ms)
+{
+    if (s_link_event == NULL) {
+        return false;
+    }
+
+    EventBits_t bits = xEventGroupWaitBits(
+        s_link_event,
+        USB_NETIF_LINK_UP_BIT,
+        pdFALSE,                        /* do not clear on exit */
+        pdTRUE,                         /* wait for all (only 1) bit */
+        (timeout_ms == 0) ? portMAX_DELAY : pdMS_TO_TICKS(timeout_ms));
+
+    return (bits & USB_NETIF_LINK_UP_BIT) != 0;
 }
 
 /* -------------------------------------------------------------------- */
