@@ -68,10 +68,10 @@ static void mqtt_app_task(void *param)
 
     LOGI(TAG, "connected to broker");
 
-    if (mqtt_sv_subscribe(s_mqtt_handle, MQTT_TEST_PUB_TOPIC, 0) != MQTT_SUCCESS) {
-        LOGW(TAG, "subscribe to '%s' failed, continuing anyway (publish-only test)", MQTT_TEST_PUB_TOPIC);
+    if (mqtt_sv_subscribe(s_mqtt_handle, MQTT_TEST_SUB_TOPIC, 0) != MQTT_SUCCESS) {
+        LOGW(TAG, "subscribe to '%s' failed, continuing anyway (publish-only test)", MQTT_TEST_SUB_TOPIC);
     } else {
-        LOGI(TAG, "subscribed to '%s'", MQTT_TEST_PUB_TOPIC);
+        LOGI(TAG, "subscribed to '%s'", MQTT_TEST_SUB_TOPIC);
     }
 
     for (;;) {
@@ -104,10 +104,11 @@ void mqtt_app_start(void)
     }
 }
 
-/* Override the weak default in mqtt_service.c: this is the round-trip
- * test - since mqtt_app subscribes to the same topic it publishes to,
- * seeing our own published messages come back here confirms publish,
- * subscribe and the broker round-trip all work. */
+/* Override the weak default in mqtt_service.c: mqtt_app publishes to
+ * MQTT_TEST_PUB_TOPIC and subscribes to MQTT_TEST_SUB_TOPIC (two
+ * separate topics). Any message received here came from an external
+ * MQTT client publishing to MQTT_TEST_SUB_TOPIC, confirming the
+ * subscribe path independently of our own publish loop. */
 void mqtt_sv_data_incoming(MQTTHandle_t mqtt, const char *topic, size_t top_len,
                             const void *payload, size_t payload_len)
 {
