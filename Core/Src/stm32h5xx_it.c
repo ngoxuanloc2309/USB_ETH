@@ -55,6 +55,7 @@
 /* USER CODE END 0 */
 
 /* External variables --------------------------------------------------------*/
+extern HASH_HandleTypeDef hhash;
 extern UART_HandleTypeDef huart3;
 extern TIM_HandleTypeDef htim5;
 
@@ -186,6 +187,20 @@ void USART3_IRQHandler(void)
   /* USER CODE BEGIN USART3_IRQn 1 */
 
   /* USER CODE END USART3_IRQn 1 */
+}
+
+/**
+  * @brief This function handles HASH global interrupt.
+  */
+void HASH_IRQHandler(void)
+{
+  /* USER CODE BEGIN HASH_IRQn 0 */
+
+  /* USER CODE END HASH_IRQn 0 */
+  HAL_HASH_IRQHandler(&hhash);
+  /* USER CODE BEGIN HASH_IRQn 1 */
+
+  /* USER CODE END HASH_IRQn 1 */
 }
 
 /* USER CODE BEGIN 1 */

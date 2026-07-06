@@ -23,11 +23,17 @@
 #include "lwip/tcpip.h"
 #include "lwip/netif.h"
 #include "lwip/dns.h"
+#include "lwip/dhcp.h"
 #include "lwip/etharp.h"
 #include "lwip/pbuf.h"
 
 #include "board.h"
+#include "app_config.h"
 #include "logger.h"
+
+#if (USE_STATIC_IP && USE_DHCP) || (!USE_STATIC_IP && !USE_DHCP)
+#error "usb_netif: exactly one of USE_STATIC_IP / USE_DHCP must be set to 1 in app_config.h"
+#endif
 
 static const char *TAG = "usb-netif";
 
@@ -42,6 +48,7 @@ static struct netif usb_netif_data;
  * finished, guaranteeing a DNS timeout on every boot. */
 static EventGroupHandle_t s_link_event;
 #define USB_NETIF_LINK_UP_BIT   (1 << 0)
+#define USB_NETIF_IP_READY_BIT  (1 << 1)
 
 /* -------------------------------------------------------------------- */
 /* RX path: host -> device, USB -> lwip                                 */
@@ -266,8 +273,22 @@ static void usb_netif_status_cb(struct netif *netif)
         ip4addr_ntoa_r(netif_ip4_netmask(netif), mask_str, sizeof(mask_str));
         ip4addr_ntoa_r(netif_ip4_gw(netif), gw_str, sizeof(gw_str));
         LOGI(TAG, "netif up, ip=%s mask=%s gw=%s", ip_str, mask_str, gw_str);
+
+        /* With USE_STATIC_IP this is already true here. With USE_DHCP
+         * this callback fires again (still with netif_is_up() true)
+         * once dhcp_bind() applies the offered address via
+         * netif_set_addr() - see netif_do_set_ipaddr() in netif.c,
+         * which calls NETIF_STATUS_CALLBACK() on any actual address
+         * change, verified directly in source, not assumed. Until
+         * then ip4_addr is still 0.0.0.0 and we must not report ready. */
+        if (!ip4_addr_isany(netif_ip4_addr(netif))) {
+            xEventGroupSetBits(s_link_event, USB_NETIF_IP_READY_BIT);
+        } else {
+            xEventGroupClearBits(s_link_event, USB_NETIF_IP_READY_BIT);
+        }
     } else {
         LOGI(TAG, "netif down");
+        xEventGroupClearBits(s_link_event, USB_NETIF_IP_READY_BIT);
     }
 }
 
@@ -295,14 +316,18 @@ static void usb_netif_link_cb(struct netif *netif)
 
 static void usb_netif_startup_cb(void *arg)
 {
+#if USE_STATIC_IP
     ip4_addr_t ipaddr, netmask, gw, dns_ip;
+#endif
 
     (void)arg;
 
+#if USE_STATIC_IP
     IP4_ADDR(&ipaddr,  IP_BYTE1,  IP_BYTE2,  IP_BYTE3,  IP_BYTE4);
     IP4_ADDR(&netmask, NETMASK_BYTE1, NETMASK_BYTE2, NETMASK_BYTE3, NETMASK_BYTE4);
     IP4_ADDR(&gw,      GW_BYTE1,  GW_BYTE2,  GW_BYTE3,  GW_BYTE4);
     IP4_ADDR(&dns_ip,  DNS_BYTE1, DNS_BYTE2, DNS_BYTE3, DNS_BYTE4);
+#endif
 
     /* The lwIP-side (virtual) MAC must differ from the MAC the host
      * sees via the USB descriptor (tud_network_mac_address[]),
@@ -320,12 +345,24 @@ static void usb_netif_startup_cb(void *arg)
     /* IMPORTANT: tcpip_input, NOT ethernet_input. This project uses
      * BSD sockets (services/socket_client, tcp_server), which require
      * tcpip_thread to own the lwIP core - see architecture decision
-     * mục 5.7 in the handoff notes. */
+     * mục 5.7 in the handoff notes.
+     *
+     * USE_DHCP: pass all-zero ip/netmask/gw to netif_add() - real
+     * values are unknown yet, dhcp_start() below will fill them in
+     * once the DHCP server (Windows ICS) replies. */
+#if USE_STATIC_IP
     if (netif_add(&usb_netif_data, &ipaddr, &netmask, &gw, NULL,
                   usb_netif_init_cb, tcpip_input) == NULL) {
         LOGE(TAG, "netif_add failed");
         return;
     }
+#else /* USE_DHCP */
+    if (netif_add(&usb_netif_data, IP4_ADDR_ANY4, IP4_ADDR_ANY4, IP4_ADDR_ANY4, NULL,
+                  usb_netif_init_cb, tcpip_input) == NULL) {
+        LOGE(TAG, "netif_add failed");
+        return;
+    }
+#endif
 
     netif_set_default(&usb_netif_data);
     netif_set_status_callback(&usb_netif_data, usb_netif_status_cb);
@@ -338,7 +375,22 @@ static void usb_netif_startup_cb(void *arg)
      * the host actually finishes enumeration. */
     netif_set_up(&usb_netif_data);
 
+#if USE_STATIC_IP
     dns_setserver(0, &dns_ip);
+#else /* USE_DHCP */
+    /* No manual dns_setserver(): dhcp_start()/dhcp_bind() apply any DNS
+     * servers offered by the DHCP server automatically (see dhcp.c,
+     * requires LWIP_DHCP_MAX_DNS_SERVERS > 0, the lwIP default with
+     * LWIP_DHCP=1). netif_set_status_callback() above already logs the
+     * real ip/mask/gw once dhcp_bind() applies them - see
+     * netif_do_set_ipaddr() calling NETIF_STATUS_CALLBACK() on any
+     * actual address change, verified directly in lwip/core/netif.c. */
+    if (dhcp_start(&usb_netif_data) != ERR_OK) {
+        LOGE(TAG, "dhcp_start failed");
+    } else {
+        LOGI(TAG, "dhcp_start: waiting for DHCP offer");
+    }
+#endif
 
     LOGI(TAG, "usb netif started");
 }
@@ -378,6 +430,22 @@ bool usb_netif_wait_link_up(uint32_t timeout_ms)
         (timeout_ms == 0) ? portMAX_DELAY : pdMS_TO_TICKS(timeout_ms));
 
     return (bits & USB_NETIF_LINK_UP_BIT) != 0;
+}
+
+bool usb_netif_wait_ip_ready(uint32_t timeout_ms)
+{
+    if (s_link_event == NULL) {
+        return false;
+    }
+
+    EventBits_t bits = xEventGroupWaitBits(
+        s_link_event,
+        USB_NETIF_IP_READY_BIT,
+        pdFALSE,                        /* do not clear on exit */
+        pdTRUE,                         /* wait for all (only 1) bit */
+        (timeout_ms == 0) ? portMAX_DELAY : pdMS_TO_TICKS(timeout_ms));
+
+    return (bits & USB_NETIF_IP_READY_BIT) != 0;
 }
 
 /* -------------------------------------------------------------------- */

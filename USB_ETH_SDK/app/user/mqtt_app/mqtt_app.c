@@ -50,9 +50,9 @@ static void mqtt_app_task(void *param)
         return;
     }
 
-    LOGI(TAG, "waiting for usb netif link up");
-    if (!usb_netif_wait_link_up(0)) {
-        LOGE(TAG, "usb netif link never came up, task exiting");
+    LOGI(TAG, "waiting for usb netif ip ready");
+    if (!usb_netif_wait_ip_ready(0)) {
+        LOGE(TAG, "usb netif ip never became ready, task exiting");
         vTaskDelete(NULL);
         return;
     }

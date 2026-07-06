@@ -26,11 +26,14 @@ extern "C" {
 /* -------------------------------------------------------------------- */
 /* IP configuration                                                     */
 /* -------------------------------------------------------------------- */
-/* Static IP only: this device does not act as a DHCP client (LWIP_DHCP
- * is the client role, not needed) and does not act as a DHCP or DNS
- * server either. IP/netmask/gateway values themselves are defined in
- * board.h (IP_BYTE1.., GW_BYTE1..), consumed by components/netif. */
-#define LWIP_DHCP  0
+/* DHCP client support. Whether it is actually used at runtime is
+ * selected at compile time by USE_STATIC_IP / USE_DHCP in
+ * app_config.h (see components/netif/usb_netif.c), not here - this
+ * just makes the DHCP client code available to link against. Static
+ * IP/netmask/gateway values (used when USE_STATIC_IP=1) are still
+ * defined in board.h (IP_BYTE1.., GW_BYTE1..). This device never acts
+ * as a DHCP or DNS server. */
+#define LWIP_DHCP  1
 
 /* DNS client (resolver): needed so the device itself can resolve a
  * public host name (for example an MQTT broker) through the host's

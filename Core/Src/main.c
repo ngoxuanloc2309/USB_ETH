@@ -19,7 +19,10 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "cmsis_os2.h"
+#include "hash.h"
 #include "icache.h"
+#include "pka.h"
+#include "rng.h"
 #include "usart.h"
 #include "usb.h"
 #include "gpio.h"
@@ -98,6 +101,9 @@ int main(void)
   MX_ICACHE_Init();
   MX_USART3_UART_Init();
   MX_USB_PCD_Init();
+  MX_HASH_Init();
+  MX_RNG_Init();
+  MX_PKA_Init();
   /* USER CODE BEGIN 2 */
 
   /* USER CODE END 2 */

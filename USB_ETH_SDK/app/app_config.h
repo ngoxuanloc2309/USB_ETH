@@ -13,8 +13,8 @@ extern "C" {
 #define USB_TASK_STACK_SIZE     512
 #define USB_TASK_PRIORITY       osPriorityAboveNormal
 
-#define USE_DHCP                0
-#define USE_STATIC_IP           1
+#define USE_DHCP                1
+#define USE_STATIC_IP           0
 
 // MQTT config
 #define MQTT_HOST                   "broker.hivemq.com"
